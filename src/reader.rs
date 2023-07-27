@@ -9,18 +9,28 @@ use crate::{
     vec_deq::VecDeque,
 };
 
-pub struct RemoteReader<R> {
+/// The `ExactReader` struct simplifies reading data from a file(s).
+pub struct ExactReader<R> {
+    /// The inner reader for the file.
     file: R,
+
+    /// The active range of file offsets within the buffer.
     file_offset_view: RangeInclusive<usize>,
+
+    /// The size of the file(s).
     size: usize,
 
+    /// The buffer used for caching data read from the file(s).
     buffer: VecDeque<u8>,
+    /// The offset within the buffer
     buffer_offset: usize,
 
+    /// Seek position to be used on `reserve`
     seeked: Option<usize>,
 }
 
-impl<R: Read + Seek> RemoteReader<MultiFile<R>> {
+impl<R: Read + Seek> ExactReader<MultiFile<R>> {
+    /// Creates a new `ExactReader` instance for reading data from multiple files.
     pub fn new_multi(files: Vec<File<R>>) -> Self {
         let file = MultiFile::new(files);
         let size = file.size();
@@ -36,7 +46,8 @@ impl<R: Read + Seek> RemoteReader<MultiFile<R>> {
     }
 }
 
-impl<R: Read + Seek> RemoteReader<File<R>> {
+impl<R: Read + Seek> ExactReader<File<R>> {
+    /// Creates a new `ExactReader` instance for reading data from a single file.
     pub fn new_single(file: File<R>) -> Self {
         let size = file.size;
 
@@ -51,21 +62,25 @@ impl<R: Read + Seek> RemoteReader<File<R>> {
     }
 }
 
-impl<R: Read + Seek> RemoteReader<R> {
+impl<R: Read + Seek> ExactReader<R> {
+    /// The total size of the file(s) in bytes.
     pub fn size(&self) -> usize {
         self.size
     }
-    
+
+    /// Calculates the physical index within the file(s) from the current buffer offset. 
     #[inline]
     fn physical_idx(&self) -> usize {
         self.file_offset_view.start() + self.buffer_offset
     }
 
+    /// Reads the given range from the inner file(s).
     fn _read(&mut self, buf: &mut Vec<u8>, read_size: usize, head: usize, tail: usize) {
         let _ = self.file.by_ref().take(read_size as u64).read_to_end(buf);
         self.file_offset_view = head..=tail;
     }
 
+    /// Reserves and caches space in the buffer for future reads
     pub fn reserve(&mut self, reserve_size: usize) {
         let real_head = self.file_offset_view.start();
 
@@ -107,7 +122,7 @@ impl<R: Read + Seek> RemoteReader<R> {
     }
 }
 
-impl<R: Read + Seek> Read for RemoteReader<R> {
+impl<R: Read + Seek> Read for ExactReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // TODO: read when size > file.size
         let size = buf.len();
@@ -136,7 +151,7 @@ impl<R: Read + Seek> Read for RemoteReader<R> {
     }
 }
 
-impl<R: Read + Seek> Seek for RemoteReader<R> {
+impl<R: Read + Seek> Seek for ExactReader<R> {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         let calculated_seek = calculate_seek(self.size, self.physical_idx(), pos)? as usize;
         if self.file_offset_view.contains(&calculated_seek) {

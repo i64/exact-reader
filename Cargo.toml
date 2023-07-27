@@ -1,5 +1,5 @@
 [package]
-name = "remote-io"
+name = "exact-reader"
 version = "0.1.0"
 edition = "2021"
 

@@ -5,4 +5,4 @@ mod multifile;
 mod reader;
 
 pub use multifile::{File, MultiFile};
-pub use reader::{RemoteReader};
+pub use reader::ExactReader;

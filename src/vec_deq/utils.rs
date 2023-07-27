@@ -1,6 +1,5 @@
 use std::ops;
 
-#[must_use]
 pub fn slice_range<R>(range: R, bounds: ops::RangeTo<usize>) -> ops::Range<usize>
 where
     R: ops::RangeBounds<usize>,
