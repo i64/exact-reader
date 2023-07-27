@@ -290,8 +290,6 @@ unsafe fn global_grow(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) 
 
     let new_ptr = std::alloc::alloc(new_layout);
 
-    dbg!(new_ptr);
-
     unsafe {
         ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr, old_layout.size());
         std::alloc::dealloc(ptr.as_ptr(), old_layout);

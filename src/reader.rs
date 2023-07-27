@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    multifile_reader::{File, MultiFile},
+    multifile::{File, MultiFile},
     utils::calculate_seek,
     vec_deq::VecDeque,
 };
@@ -24,10 +24,7 @@ pub struct RemoteReader<R> {
 }
 
 impl<R: Read + Seek> RemoteReader<R> {
-    pub fn new<F>(files: &[F], size: usize) -> Self
-    where
-        for<'a> &'a F: Into<File<R>>,
-    {
+    pub fn new(files: Vec<File<R>>, size: usize) -> Self {
         Self {
             file: MultiFile::new(files),
             file_info: FileInfo { size },

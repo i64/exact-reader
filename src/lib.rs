@@ -1,5 +1,8 @@
 mod utils;
 mod vec_deq;
 
-pub mod multifile_reader;
-pub mod reader;
+mod multifile;
+mod reader;
+
+pub use multifile::{File, MultiFile};
+pub use reader::{FileInfo, RemoteReader};

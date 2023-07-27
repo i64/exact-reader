@@ -33,11 +33,7 @@ pub struct MultiFile<R> {
 }
 
 impl<R> MultiFile<R> {
-    pub fn new<F>(files: &[F]) -> Self
-    where
-        for<'a> &'a F: Into<File<R>>,
-    {
-        let files: Vec<File<R>> = files.iter().map(|f| f.into()).collect();
+    pub fn new(files: Vec<File<R>>) -> Self {
         let total_len = files.iter().map(|f| f.size).sum();
         Self {
             current_file_idx: 0,
@@ -91,7 +87,6 @@ impl<R: Read> Read for MultiFile<R> {
 
         'find: {
             for (idx, file) in self.files[self.current_file_idx..].iter_mut().enumerate() {
-                dbg!(self.current_file_idx + idx, &buf);
                 infile = file.read(&mut buf[taken..])?;
                 taken += infile;
                 if taken == expected {
@@ -160,46 +155,55 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    impl<'a, const N: usize> Into<File<Cursor<[u8; N]>>> for &Cursor<[u8; N]> {
-        fn into(self) -> File<Cursor<[u8; N]>> {
-            let len = self.get_ref().len();
-            File {
-                file: self.clone(),
+    impl From<Cursor<Vec<u8>>> for File<Cursor<Vec<u8>>> {
+        fn from(value: Cursor<Vec<u8>>) -> Self {
+            let len = value.get_ref().len();
+            Self {
+                file: value,
                 size: len,
                 filename: "cursor".to_string(),
             }
         }
     }
 
-    fn new_file() -> MultiFile<Cursor<[u8; 3]>> {
-        let a = Cursor::new([1u8, 2, 3]);
-        let b = Cursor::new([4u8, 5, 6]);
+    fn new_file() -> MultiFile<Cursor<Vec<u8>>> {
+        let a = Cursor::new(vec![1u8, 2, 3]);
+        let b = Cursor::new(vec![4u8, 5, 6]);
 
-        MultiFile::new(&[a, b])
+        MultiFile::new(vec![a.into(), b.into()])
     }
-
     #[test]
-    fn test_read() {
+    fn test_read1() {
+        let a = Cursor::new(vec![1u8, 2, 3]);
+        let mut file = MultiFile::new(vec![a.into()]);
+
+        {
+            let mut buf = [0u8; 2];
+            file.seek(std::io::SeekFrom::End(-2));
+
+            file.read(&mut buf).unwrap();
+            assert_eq!(buf, [2, 3])
+        }
+    }
+    #[test]
+    fn test_read2() {
         let mut file = new_file();
 
         {
             let mut buf = [0u8; 3];
             file.read(&mut buf).unwrap();
-            dbg!(&buf);
             assert_eq!(buf, [1, 2, 3])
         }
 
         {
             let mut buf = [0u8; 1];
             file.read(&mut buf).unwrap();
-            dbg!(&buf);
             assert_eq!(buf, [4])
         }
 
         {
             let mut buf = [0u8; 5];
             file.read(&mut buf).unwrap();
-            dbg!(&buf);
             assert_eq!(buf, [5, 6, 0, 0, 0])
         }
     }
