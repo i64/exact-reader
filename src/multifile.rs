@@ -2,9 +2,13 @@ use std::io::{Read, Seek};
 
 use crate::utils::calculate_seek;
 
+/// The `File` struct represents an individual file within the multi-file context.
 pub struct File<R> {
+    /// The inner reader for the file.
     pub file: R,
+    /// The size of the file in bytes.
     pub size: usize,
+    /// The name of the file.
     pub filename: String,
 }
 
@@ -22,17 +26,26 @@ impl<R: Seek> Seek for File<R> {
     }
 }
 
+/// The `MultiFile` struct combines multiple files into a unified stream,
+/// allowing sequential reading as if all files are concatenated.
 pub struct MultiFile<R> {
+    /// The list of files
     files: Vec<File<R>>,
 
+    /// The cumulative offset to the current file within the multi-file context.
+    /// (without the in-file offset)
     cumul_offset: usize,
+    /// The offset within the current file.
     infile_offset: usize,
 
+    /// The total size of the combined multi-file stream.
     total_len: usize,
+    /// The index of the current file being read from.
     current_file_idx: usize,
 }
 
 impl<R> MultiFile<R> {
+    /// Creates a new `MultiFile` instance with the provided list of files.
     pub fn new(files: Vec<File<R>>) -> Self {
         let total_len = files.iter().map(|f| f.size).sum();
         Self {
@@ -44,6 +57,8 @@ impl<R> MultiFile<R> {
         }
     }
 
+    /// Converts the given position within the combined multi-file stream
+    /// to the index of the corresponding file within the `files`.
     #[inline]
     fn needle_to_file(&self, needle: usize) -> Option<usize> {
         if needle > self.total_len {
@@ -62,7 +77,7 @@ impl<R> MultiFile<R> {
             let mut res = self.cumul_offset;
             for (idx, file) in self.files.iter().enumerate().skip(self.current_file_idx) {
                 if res + file.size > needle {
-                    return Some(self.current_file_idx + idx);
+                    return Some(idx);
                 }
                 res += file.size;
             }
@@ -71,9 +86,15 @@ impl<R> MultiFile<R> {
         unreachable!()
     }
 
+    /// Calculates the physical offset within the combined multi-file stream.
     #[inline]
     fn physical_offset(&self) -> usize {
         self.cumul_offset + self.infile_offset
+    }
+
+    /// The total size of the multi-file stream in bytes.
+    pub fn size(&self) -> usize {
+        self.total_len
     }
 }
 
@@ -179,9 +200,9 @@ mod tests {
 
         {
             let mut buf = [0u8; 2];
-            file.seek(std::io::SeekFrom::End(-2));
+            let _ = file.seek(std::io::SeekFrom::End(-2));
 
-            file.read(&mut buf).unwrap();
+            let _ = file.read(&mut buf).unwrap();
             assert_eq!(buf, [2, 3])
         }
     }
@@ -215,27 +236,27 @@ mod tests {
         {
             let mut buf = [0u8; 1];
 
-            file.seek(std::io::SeekFrom::Start(3));
+            let _ = file.seek(std::io::SeekFrom::Start(3));
 
-            file.read(&mut buf).unwrap();
+            let _ = file.read(&mut buf).unwrap();
             assert_eq!(buf, [4])
         }
 
         {
             let mut buf = [0u8; 2];
 
-            file.seek(std::io::SeekFrom::Current(-1));
+            let _ = file.seek(std::io::SeekFrom::Current(-1));
 
-            file.read(&mut buf).unwrap();
+            let _ = file.read(&mut buf).unwrap();
             assert_eq!(buf, [4, 5])
         }
 
         {
             let mut buf = [0u8; 5];
 
-            file.seek(std::io::SeekFrom::Start(0));
+            let _ = file.seek(std::io::SeekFrom::Start(0));
 
-            file.read(&mut buf).unwrap();
+            let _ = file.read(&mut buf).unwrap();
             assert_eq!(buf, [1, 2, 3, 4, 5])
         }
     }

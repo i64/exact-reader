@@ -8,14 +8,11 @@ use crate::{
     utils::calculate_seek,
     vec_deq::VecDeque,
 };
-pub struct FileInfo {
-    pub size: usize,
-}
 
 pub struct RemoteReader<R> {
-    file: MultiFile<R>,
-    pub file_info: FileInfo,
+    file: R,
     file_offset_view: RangeInclusive<usize>,
+    size: usize,
 
     buffer: VecDeque<u8>,
     buffer_offset: usize,
@@ -23,18 +20,42 @@ pub struct RemoteReader<R> {
     seeked: Option<usize>,
 }
 
-impl<R: Read + Seek> RemoteReader<R> {
-    pub fn new(files: Vec<File<R>>, size: usize) -> Self {
+impl<R: Read + Seek> RemoteReader<MultiFile<R>> {
+    pub fn new_multi(files: Vec<File<R>>) -> Self {
+        let file = MultiFile::new(files);
+        let size = file.size();
+
         Self {
-            file: MultiFile::new(files),
-            file_info: FileInfo { size },
+            file,
+            size,
             buffer: VecDeque::new(),
             file_offset_view: 0..=0,
             buffer_offset: 0,
             seeked: None,
         }
     }
+}
 
+impl<R: Read + Seek> RemoteReader<File<R>> {
+    pub fn new_single(file: File<R>) -> Self {
+        let size = file.size;
+
+        Self {
+            file,
+            size,
+            buffer: VecDeque::new(),
+            file_offset_view: 0..=0,
+            buffer_offset: 0,
+            seeked: None,
+        }
+    }
+}
+
+impl<R: Read + Seek> RemoteReader<R> {
+    pub fn size(&self) -> usize {
+        self.size
+    }
+    
     #[inline]
     fn physical_idx(&self) -> usize {
         self.file_offset_view.start() + self.buffer_offset
@@ -117,8 +138,7 @@ impl<R: Read + Seek> Read for RemoteReader<R> {
 
 impl<R: Read + Seek> Seek for RemoteReader<R> {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let calculated_seek =
-            calculate_seek(self.file_info.size, self.physical_idx(), pos)? as usize;
+        let calculated_seek = calculate_seek(self.size, self.physical_idx(), pos)? as usize;
         if self.file_offset_view.contains(&calculated_seek) {
             self.buffer_offset = calculated_seek - self.file_offset_view.start();
             return Ok(calculated_seek as u64);
