@@ -1,9 +1,10 @@
 [package]
 name = "exact-reader"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 description = "I/O buffering crate, supporting reservation-based reads and virtually-concatenated file handling."
+repository = "https://github.com/i64/exact-reader"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[examples]]
