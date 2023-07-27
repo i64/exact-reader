@@ -195,6 +195,13 @@ mod tests {
             dbg!(&buf);
             assert_eq!(buf, [4])
         }
+
+        {
+            let mut buf = [0u8; 5];
+            file.read(&mut buf).unwrap();
+            dbg!(&buf);
+            assert_eq!(buf, [5, 6, 0, 0, 0])
+        }
     }
 
     #[test]

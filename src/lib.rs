@@ -1,5 +1,5 @@
-mod reader;
+mod utils;
 mod vec_deq;
 
-mod multifile_reader;
-mod utils;
+pub mod multifile_reader;
+pub mod reader;
