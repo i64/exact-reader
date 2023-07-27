@@ -300,29 +300,6 @@ unsafe fn global_grow(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) 
     NonNull::slice_from_raw_parts(NonNull::new_unchecked(new_ptr), new_layout.size())
 }
 
-// #[inline(never)]
-// fn finish_grow(
-//     new_layout: Result<Layout, LayoutError>,
-//     current_memory: Option<(NonNull<u8>, Layout)>,
-// ) -> Result<NonNull<[u8]>, TryReserveError> {
-//     let new_layout = new_layout.map_err(|_| TryReserveErrorKind::CapacityOverflow)?;
-//     alloc_guard(new_layout.size())?;
-//     if let Some((ptr, old_layout)) = current_memory {
-//         debug_assert_eq!(old_layout.align(), new_layout.align());
-//         grow_global_allocator(ptr, old_layout, new_layout)
-//     } else {
-//         unsafe {
-//             let raw_ptr = std::alloc::alloc(new_layout);
-//             let ptr = NonNull::new(raw_ptr).ok_or(TryReserveErrorKind::AllocError {
-//                 layout: new_layout,
-//                 non_exhaustive: (),
-//             })?;
-//             let slice = slice::from_raw_parts_mut(ptr.as_ptr(), new_layout.size());
-//             Ok(NonNull::new(slice).unwrap_unchecked())
-//         }
-//     }
-// }
-
 impl<T> Drop for RawVec<T> {
     /// Frees the memory owned by the `RawVec` *without* trying to drop its contents.
     #[inline(always)]

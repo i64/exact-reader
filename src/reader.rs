@@ -3,13 +3,17 @@ use std::{
     ops::RangeInclusive,
 };
 
-use crate::vec_deq::VecDeque;
+use crate::{
+    multifile_reader::{File, MultiFile},
+    utils::calculate_seek,
+    vec_deq::VecDeque,
+};
 pub struct FileInfo {
     pub size: usize,
 }
 
 pub struct RemoteReader<R> {
-    file: R,
+    file: MultiFile<R>,
     pub file_info: FileInfo,
     file_offset_view: RangeInclusive<usize>,
 
@@ -20,9 +24,12 @@ pub struct RemoteReader<R> {
 }
 
 impl<R: Read + Seek> RemoteReader<R> {
-    pub fn new(f: R, size: usize) -> Self {
+    pub fn new<F>(files: &[F], size: usize) -> Self
+    where
+        for<'a> &'a F: Into<File<R>>,
+    {
         Self {
-            file: f,
+            file: MultiFile::new(files),
             file_info: FileInfo { size },
             buffer: VecDeque::new(),
             file_offset_view: 0..=0,
@@ -35,10 +42,12 @@ impl<R: Read + Seek> RemoteReader<R> {
     fn physical_idx(&self) -> usize {
         self.file_offset_view.start() + self.buffer_offset
     }
+
     fn _read(&mut self, buf: &mut Vec<u8>, read_size: usize, head: usize, tail: usize) {
         let _ = self.file.by_ref().take(read_size as u64).read_to_end(buf);
         self.file_offset_view = head..=tail;
     }
+
     pub fn reserve(&mut self, reserve_size: usize) {
         let real_head = self.file_offset_view.start();
 
@@ -78,22 +87,6 @@ impl<R: Read + Seek> RemoteReader<R> {
 
         self.buffer.extend_back(buf.as_mut_slice());
     }
-
-    fn calculate_seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let (base_pos, offset) = match pos {
-            std::io::SeekFrom::Start(o) => (0, o as i64),
-            std::io::SeekFrom::End(o) => (self.file_info.size as i64, o),
-            std::io::SeekFrom::Current(o) => (self.physical_idx() as i64, o),
-        };
-
-        let new_pos = base_pos + offset;
-
-        if new_pos.is_negative() {
-            return Err(std::io::ErrorKind::InvalidInput.into());
-        }
-
-        Ok(new_pos as u64)
-    }
 }
 
 impl<R: Read + Seek> Read for RemoteReader<R> {
@@ -127,7 +120,8 @@ impl<R: Read + Seek> Read for RemoteReader<R> {
 
 impl<R: Read + Seek> Seek for RemoteReader<R> {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let calculated_seek = self.calculate_seek(pos).unwrap() as usize;
+        let calculated_seek =
+            calculate_seek(self.file_info.size, self.physical_idx(), pos)? as usize;
         if self.file_offset_view.contains(&calculated_seek) {
             self.buffer_offset = calculated_seek - self.file_offset_view.start();
             return Ok(calculated_seek as u64);
