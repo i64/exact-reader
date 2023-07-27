@@ -1,4 +1,4 @@
-/// Calculates the new seek position in the file based on the current offset 
+/// Calculates the new seek position in the file based on the current offset
 pub fn calculate_seek(
     size: usize,
     current_offset: usize,

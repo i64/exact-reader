@@ -31,8 +31,7 @@ pub struct ExactReader<R> {
 
 impl<R: Read + Seek> ExactReader<MultiFile<R>> {
     /// Creates a new `ExactReader` instance for reading data from multiple files.
-    pub fn new_multi(files: Vec<File<R>>) -> Self {
-        let file = MultiFile::new(files);
+    pub fn new_multi(file: MultiFile<R>) -> Self {
         let size = file.size();
 
         Self {
@@ -68,7 +67,7 @@ impl<R: Read + Seek> ExactReader<R> {
         self.size
     }
 
-    /// Calculates the physical index within the file(s) from the current buffer offset. 
+    /// Calculates the physical index within the file(s) from the current buffer offset.
     #[inline]
     fn physical_idx(&self) -> usize {
         self.file_offset_view.start() + self.buffer_offset
