@@ -330,7 +330,6 @@ fn capacity_overflow() -> ! {
 
 #[track_caller]
 #[inline(always)]
-#[cfg(debug_assertions)]
 unsafe fn assume(v: bool) {
     if !v {
         core::unreachable!()
