@@ -65,7 +65,9 @@ impl<R> MultiFile<R> {
             return None;
         }
 
-        if self.cumul_offset >= needle {
+        if self.cumul_offset == needle {
+            return Some(self.current_file_idx);
+        } else if self.cumul_offset > needle {
             let mut res = 0;
             for (idx, file) in self.files.iter().enumerate().take(self.current_file_idx) {
                 if res + file.size >= needle {
@@ -243,6 +245,14 @@ mod tests {
         }
 
         {
+            let mut buf = [0u8; 1];
+
+            let _ = file.seek(std::io::SeekFrom::Current(0));
+
+            let _ = file.read(&mut buf).unwrap();
+            assert_eq!(buf, [5])
+        }
+        {
             let mut buf = [0u8; 2];
 
             let _ = file.seek(std::io::SeekFrom::Current(-1));
@@ -258,6 +268,29 @@ mod tests {
 
             let _ = file.read(&mut buf).unwrap();
             assert_eq!(buf, [1, 2, 3, 4, 5])
+        }
+    }
+
+    #[test]
+    fn test_seek2() {
+        let mut file = new_file();
+
+        {
+            let mut buf = [0u8; 1];
+
+            let _ = file.seek(std::io::SeekFrom::Start(0));
+
+            let _ = file.read(&mut buf).unwrap();
+            assert_eq!(buf, [1])
+        }
+
+        {
+            let mut buf = [0u8; 2];
+
+            let _ = file.seek(std::io::SeekFrom::Start(0));
+
+            let _ = file.read(&mut buf).unwrap();
+            assert_eq!(buf, [1, 2])
         }
     }
 }
