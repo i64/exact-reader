@@ -1,8 +1,10 @@
+use super::unique::Unique;
+
 use core::alloc::LayoutError;
 use core::cmp;
 use core::ops::Drop;
-use core::ptr::{self, NonNull};
-use std::alloc::{handle_alloc_error, Layout};
+use core::ptr;
+use std::{alloc::{handle_alloc_error, Layout}, ptr::NonNull, marker::PhantomData};
 
 pub struct TryReserveError {
     pub kind: TryReserveErrorKind,
@@ -32,7 +34,7 @@ enum AllocInit {
 }
 #[allow(missing_debug_implementations)]
 pub struct RawVec<T> {
-    ptr: NonNull<T>,
+    ptr: Unique<T>,
     cap: usize,
 }
 #[allow(dead_code)]
@@ -55,7 +57,7 @@ impl<T> RawVec<T> {
     pub(crate) const MIN_NON_ZERO_CAP: usize = 8;
     pub const fn new_in() -> Self {
         Self {
-            ptr: NonNull::dangling(),
+            ptr: Unique::dangling(),
             cap: 0,
         }
     }
@@ -74,14 +76,14 @@ impl<T> RawVec<T> {
             AllocInit::Zeroed => unsafe { std::alloc::alloc_zeroed(layout) },
         };
         Self {
-            ptr: unsafe { NonNull::new_unchecked(result.cast()) },
+            ptr: unsafe { Unique::new_unchecked(result.cast()) },
             cap: capacity,
         }
     }
     #[inline]
     pub unsafe fn from_raw_parts(ptr: *mut T, capacity: usize) -> Self {
         Self {
-            ptr: unsafe { NonNull::new_unchecked(ptr) },
+            ptr: unsafe { Unique::new_unchecked(ptr) },
             cap: capacity,
         }
     }
@@ -93,7 +95,7 @@ impl<T> RawVec<T> {
     pub fn capacity(&self) -> usize {
         self.cap
     }
-    fn current_memory(&self) -> Option<(NonNull<u8>, Layout)> {
+    fn current_memory(&self) -> Option<(Unique<u8>, Layout)> {
         if self.cap == 0 {
             None
         } else {
@@ -104,7 +106,7 @@ impl<T> RawVec<T> {
                 let align = std::mem::align_of::<T>();
                 let size = std::mem::size_of::<T>() * self.cap;
                 let layout = Layout::from_size_align_unchecked(size, align);
-                Some((self.ptr.cast(), layout))
+                Some((self.ptr.cast().into(), layout))
             }
         }
     }
@@ -157,8 +159,8 @@ impl<T> RawVec<T> {
     fn needs_to_grow(&self, len: usize, additional: usize) -> bool {
         additional > self.capacity().wrapping_sub(len)
     }
-    fn set_ptr_and_cap(&mut self, ptr: NonNull<[u8]>, cap: usize) {
-        self.ptr = unsafe { NonNull::new_unchecked(ptr.as_ptr()).cast() };
+    fn set_ptr_and_cap(&mut self, ptr: Unique<[u8]>, cap: usize) {
+        self.ptr =  unsafe { Unique::new_unchecked(ptr.cast().as_ptr()) };
         self.cap = cap;
     }
     fn grow_amortized(&mut self, len: usize, additional: usize) -> Result<(), TryReserveError> {
@@ -214,7 +216,7 @@ impl<T> RawVec<T> {
         // None.
         if cap == 0 {
             unsafe { std::alloc::dealloc(ptr.as_ptr(), layout) };
-            self.ptr = NonNull::dangling();
+            self.ptr = Unique::dangling();
             self.cap = 0;
         } else {
             let ptr = unsafe {
@@ -230,7 +232,7 @@ impl<T> RawVec<T> {
     }
 }
 
-unsafe fn alloc_shrink(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> NonNull<[u8]> {
+unsafe fn alloc_shrink(ptr: Unique<u8>, old_layout: Layout, new_layout: Layout) -> Unique<[u8]> {
     debug_assert!(
         new_layout.size() <= old_layout.size(),
         "`new_layout.size()` must be smaller than or equal to `old_layout.size()`"
@@ -251,14 +253,14 @@ unsafe fn alloc_shrink(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout)
     NonNull::slice_from_raw_parts(
         unsafe { NonNull::new_unchecked(new_ptr) },
         new_layout.size(),
-    )
+    ).into()
 }
 
 #[inline(never)]
 fn finish_grow(
     new_layout: Result<Layout, LayoutError>,
-    current_memory: Option<(NonNull<u8>, Layout)>,
-) -> Result<NonNull<[u8]>, TryReserveError> {
+    current_memory: Option<(Unique<u8>, Layout)>,
+) -> Result<Unique<[u8]>, TryReserveError> {
     // Check for the error here to minimize the size of `RawVec::grow_*`.
     let new_layout = new_layout.map_err(|_| TryReserveErrorKind::CapacityOverflow)?;
 
@@ -276,13 +278,13 @@ fn finish_grow(
         NonNull::slice_from_raw_parts(
             unsafe { NonNull::new_unchecked(new_ptr) },
             new_layout.size(),
-        )
+        ).into()
     };
 
     Ok(memory)
 }
 
-unsafe fn global_grow(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> NonNull<[u8]> {
+unsafe fn global_grow(ptr: Unique<u8>, old_layout: Layout, new_layout: Layout) -> Unique<[u8]> {
     debug_assert!(
         new_layout.size() >= old_layout.size(),
         "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
@@ -295,7 +297,7 @@ unsafe fn global_grow(ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) 
         std::alloc::dealloc(ptr.as_ptr(), old_layout);
     }
 
-    NonNull::slice_from_raw_parts(NonNull::new_unchecked(new_ptr), new_layout.size())
+    NonNull::slice_from_raw_parts(NonNull::new_unchecked(new_ptr), new_layout.size()).into()
 }
 
 impl<T> Drop for RawVec<T> {

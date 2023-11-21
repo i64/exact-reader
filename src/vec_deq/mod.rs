@@ -1,4 +1,5 @@
 #![allow(unused)]
+mod unique;
 mod raw_vec;
 mod utils;
 
