@@ -1,6 +1,6 @@
 #![allow(unused)]
-mod unique;
 mod raw_vec;
+mod unique;
 mod utils;
 
 use std::cmp::Ordering;

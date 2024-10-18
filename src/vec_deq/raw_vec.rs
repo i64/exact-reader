@@ -4,7 +4,11 @@ use core::alloc::LayoutError;
 use core::cmp;
 use core::ops::Drop;
 use core::ptr;
-use std::{alloc::{handle_alloc_error, Layout}, ptr::NonNull, marker::PhantomData};
+use std::{
+    alloc::{handle_alloc_error, Layout},
+    marker::PhantomData,
+    ptr::NonNull,
+};
 
 pub struct TryReserveError {
     pub kind: TryReserveErrorKind,
@@ -160,7 +164,7 @@ impl<T> RawVec<T> {
         additional > self.capacity().wrapping_sub(len)
     }
     fn set_ptr_and_cap(&mut self, ptr: Unique<[u8]>, cap: usize) {
-        self.ptr =  unsafe { Unique::new_unchecked(ptr.cast().as_ptr()) };
+        self.ptr = unsafe { Unique::new_unchecked(ptr.cast().as_ptr()) };
         self.cap = cap;
     }
     fn grow_amortized(&mut self, len: usize, additional: usize) -> Result<(), TryReserveError> {
@@ -253,7 +257,8 @@ unsafe fn alloc_shrink(ptr: Unique<u8>, old_layout: Layout, new_layout: Layout) 
     NonNull::slice_from_raw_parts(
         unsafe { NonNull::new_unchecked(new_ptr) },
         new_layout.size(),
-    ).into()
+    )
+    .into()
 }
 
 #[inline(never)]
@@ -278,7 +283,8 @@ fn finish_grow(
         NonNull::slice_from_raw_parts(
             unsafe { NonNull::new_unchecked(new_ptr) },
             new_layout.size(),
-        ).into()
+        )
+        .into()
     };
 
     Ok(memory)

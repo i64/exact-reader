@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::NonNull, fmt};
+use std::{fmt, marker::PhantomData, ptr::NonNull};
 
 // stoleen from https://gitlab.com/fee1-dead/unique
 #[repr(transparent)]
@@ -43,7 +43,7 @@ impl<T: ?Sized> Unique<T> {
     #[inline]
     pub const unsafe fn new_unchecked(ptr: *mut T) -> Self {
         // SAFETY: the caller must guarantee that `ptr` is non-null.
-        Unique (NonNull::new_unchecked(ptr), PhantomData)
+        Unique(NonNull::new_unchecked(ptr), PhantomData)
     }
 
     /// Creates a new `Unique` if `ptr` is non-null.
@@ -136,6 +136,6 @@ impl<T: ?Sized> From<Unique<T>> for NonNull<T> {
 impl<T: ?Sized> From<NonNull<T>> for Unique<T> {
     #[inline]
     fn from(reference: NonNull<T>) -> Self {
-        Unique (reference, PhantomData)
+        Unique(reference, PhantomData)
     }
 }
