@@ -67,22 +67,19 @@ impl<R> MultiFile<R> {
 
         if self.cumul_offset == needle {
             return Some(self.current_file_idx);
-        } else if self.cumul_offset > needle {
-            let mut res = 0;
-            for (idx, file) in self.files.iter().enumerate().take(self.current_file_idx) {
-                if res + file.size >= needle {
-                    return Some(idx);
-                }
-                res += file.size;
-            }
+        }
+
+        let mut res = if self.cumul_offset > needle {
+            0
         } else {
-            let mut res = self.cumul_offset;
-            for (idx, file) in self.files.iter().enumerate().skip(self.current_file_idx) {
-                if res + file.size > needle {
-                    return Some(idx);
-                }
-                res += file.size;
+            self.cumul_offset
+        };
+
+        for (idx, file) in self.files.iter().enumerate().take(self.current_file_idx) {
+            if res + file.size >= needle {
+                return Some(idx);
             }
+            res += file.size;
         }
 
         unreachable!()
